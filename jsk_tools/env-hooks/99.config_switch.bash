@@ -9,7 +9,7 @@ config_switch () {
     current_user="$(sed -n 1p $config_dir/current_config)"
     current_shell="$(sed -n 2p $config_dir/current_config)"
   fi
-  if [ ! $# -eq 2 ]; then
+  if [ ! $# -eq 2 ] && [ ! $# -eq 1]; then
     echo "Current user: $current_user"
     echo "Current shell: $current_shell"
     if [ -e "$current_shell" ]; then
@@ -17,8 +17,27 @@ config_switch () {
     fi
     return 1
   fi
-  gh_user=$1
-  shell=$2
+  if [ $# -eq 1]; then
+    user_config_file="$config_dir/user_config"
+    declare -A USER_CONFIG
+    while read line; do
+        if [[ `echo $line | grep 'User'` ]]; then
+            config_user=`echo $line | sed -e 's/^User \(.*\)$/\1/'`
+            unset config_shell
+        fi
+        if [[ -n $config_user ]];then
+            if [[ `echo $line | grep 'Shell'` ]]; then
+                config_shell=`echo $line | sed -e 's/Shell \(.*\)$/\1/'`
+                USER_CONFIG+=(["$config_user"]="$config_shell")
+            fi
+        fi
+    done < $FILE
+    gh_user=$1
+    shell=${USER_CONFIG["$gh_user"]}
+  else
+    gh_user=$1
+    shell=$2
+  fi
   echo "Switching user: $current_user -> $gh_user"
   echo $gh_user > $config_dir/current_config
   echo $shell >> $config_dir/current_config
